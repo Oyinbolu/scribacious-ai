@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Scribacious – AI Composition Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --gold: #E6BE58;
+    --gold-light: #f2d47e;
+    --gold-dark: #c9a030;
+    --navy: #010066;
+    --navy-mid: #050099;
+    --navy-light: #0a00cc;
+    --white: #ffffff;
+    --off-white: #fdfaf2;
+    --text-dark: #0a0040;
+    --shadow: 0 8px 40px rgba(1,0,102,0.22);
+    --radius: 14px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--navy);
+    font-family: 'Crimson Pro', Georgia, serif;
+    color: var(--off-white);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ── Animated background ── */
+  .bg-canvas {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  }
+  .bg-canvas span {
+    position: absolute; border-radius: 50%;
+    background: var(--gold); opacity: 0.06;
+    animation: drift linear infinite;
+  }
+  @keyframes drift {
+    0%   { transform: translateY(0) scale(1); }
+    50%  { transform: translateY(-40px) scale(1.08); }
+    100% { transform: translateY(0) scale(1); }
+  }
+
+  /* ── Layout ── */
+  .wrapper {
+    position: relative; z-index: 1;
+    max-width: 860px; margin: 0 auto;
+    padding: 0 18px 60px;
+  }
+
+  /* ── Header ── */
+  header {
+    text-align: center;
+    padding: 46px 20px 28px;
+    border-bottom: 2px solid rgba(230,190,88,0.25);
+    margin-bottom: 32px;
+    position: relative;
+  }
+  .logo-ring {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 72px; height: 72px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold-dark), var(--gold-light));
+    box-shadow: 0 0 0 6px rgba(230,190,88,0.18), 0 4px 20px rgba(230,190,88,0.3);
+    font-size: 2rem; margin-bottom: 14px;
+    animation: pulse-ring 3s ease-in-out infinite;
+  }
+  @keyframes pulse-ring {
+    0%,100% { box-shadow: 0 0 0 6px rgba(230,190,88,0.18), 0 4px 20px rgba(230,190,88,0.3); }
+    50%      { box-shadow: 0 0 0 12px rgba(230,190,88,0.10), 0 4px 28px rgba(230,190,88,0.45); }
+  }
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    color: var(--gold);
+    letter-spacing: 2px;
+    text-shadow: 0 2px 18px rgba(230,190,88,0.25);
+    line-height: 1.1;
+  }
+  .tagline {
+    font-size: 1.05rem; font-style: italic;
+    color: rgba(230,190,88,0.75);
+    margin-top: 8px; letter-spacing: 0.3px;
+  }
+  .oau-badge {
+    display: inline-block; margin-top: 14px;
+    background: rgba(230,190,88,0.12);
+    border: 1px solid rgba(230,190,88,0.3);
+    color: var(--gold-light); font-size: 0.78rem;
+    padding: 4px 14px; border-radius: 20px; letter-spacing: 0.5px;
+  }
+
+  /* ── Tab Bar ── */
+  .tab-bar {
+    display: flex; gap: 0; margin-bottom: 28px;
+    border: 2px solid rgba(230,190,88,0.3);
+    border-radius: var(--radius); overflow: hidden;
+  }
+  .tab-btn {
+    flex: 1; padding: 12px 10px; border: none; cursor: pointer;
+    font-family: 'Crimson Pro', serif; font-size: 1rem; font-weight: 600;
+    transition: all 0.25s ease; letter-spacing: 0.3px;
+    background: transparent; color: rgba(230,190,88,0.55);
+  }
+  .tab-btn.active {
+    background: var(--gold); color: var(--navy);
+  }
+  .tab-btn:not(.active):hover { background: rgba(230,190,88,0.12); color: var(--gold); }
+
+  /* ── Card ── */
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(230,190,88,0.2);
+    border-radius: var(--radius);
+    padding: 28px 26px;
+    margin-bottom: 22px;
+    backdrop-filter: blur(6px);
+  }
+  .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.15rem; color: var(--gold);
+    margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+
+  /* ── Type Selector ── */
+  .type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+  .type-chip {
+    display: flex; align-items: center; gap: 7px;
+    padding: 10px 12px; border-radius: 10px; cursor: pointer;
+    border: 1.5px solid rgba(230,190,88,0.22);
+    background: transparent; color: rgba(253,250,242,0.75);
+    font-family: 'Crimson Pro', serif; font-size: 0.88rem;
+    transition: all 0.2s ease; text-align: left;
+  }
+  .type-chip:hover { border-color: var(--gold); color: var(--gold); background: rgba(230,190,88,0.08); }
+  .type-chip.selected { background: rgba(230,190,88,0.18); border-color: var(--gold); color: var(--gold); font-weight: 600; }
+  .type-chip .chip-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+  /* ── Textarea ── */
+  .compose-area {
+    width: 100%; min-height: 210px;
+    padding: 16px 18px;
+    background: var(--white); color: #111;
+    border: 2.5px solid rgba(230,190,88,0.4);
+    border-radius: var(--radius); resize: vertical;
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 1.05rem; line-height: 1.75;
+    outline: none; transition: border-color 0.2s ease;
+  }
+  .compose-area:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(230,190,88,0.15); }
+  .compose-area::placeholder { color: #aaa; font-style: italic; }
+
+  .char-counter {
+    text-align: right; font-size: 0.8rem;
+    color: rgba(230,190,88,0.5); margin-top: 6px;
+  }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    padding: 14px 32px; border-radius: 40px; border: none; cursor: pointer;
+    background: linear-gradient(135deg, var(--gold-dark) 0%, var(--gold-light) 100%);
+    color: var(--navy); font-family: 'Playfair Display', serif;
+    font-size: 1.05rem; font-weight: 700; letter-spacing: 0.5px;
+    box-shadow: 0 4px 20px rgba(230,190,88,0.35);
+    transition: all 0.22s ease; width: 100%;
+  }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 7px 28px rgba(230,190,88,0.5); }
+  .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 20px; border-radius: 30px; cursor: pointer;
+    border: 1.5px solid rgba(230,190,88,0.45); background: transparent;
+    color: var(--gold); font-family: 'Crimson Pro', serif; font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+  .btn-secondary:hover { background: rgba(230,190,88,0.12); border-color: var(--gold); }
+  .btn-secondary.speaking { background: rgba(230,190,88,0.22); border-color: var(--gold); animation: glow 1s ease-in-out infinite alternate; }
+  @keyframes glow { from { box-shadow: 0 0 6px rgba(230,190,88,0.3); } to { box-shadow: 0 0 16px rgba(230,190,88,0.65); } }
+
+  .btn-new {
+    display: block; width: 100%; padding: 16px;
+    background: transparent;
+    border: 2.5px dashed rgba(230,190,88,0.4);
+    border-radius: var(--radius); cursor: pointer;
+    color: var(--gold); font-family: 'Playfair Display', serif;
+    font-size: 1.05rem; letter-spacing: 0.5px;
+    transition: all 0.25s ease; margin-top: 10px;
+  }
+  .btn-new:hover { background: rgba(230,190,88,0.07); border-color: var(--gold); transform: translateY(-1px); }
+
+  /* ── Spinner ── */
+  .spinner-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 36px 20px; }
+  .spinner {
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 4px solid rgba(230,190,88,0.15);
+    border-top-color: var(--gold);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner-text { color: rgba(230,190,88,0.7); font-style: italic; font-size: 1rem; }
+
+  /* ── Feedback ── */
+  #feedback-box {
+    background: var(--off-white); color: var(--text-dark);
+    border-radius: var(--radius); padding: 28px 26px;
+    border: 2px solid var(--gold);
+    box-shadow: var(--shadow);
+    animation: slideUp 0.4s ease;
+  }
+  @keyframes slideUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+
+  .feedback-toolbar {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin-bottom: 20px; padding-bottom: 16px;
+    border-bottom: 2px solid rgba(1,0,102,0.12);
+    align-items: center;
+  }
+  .feedback-toolbar span {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem; color: var(--navy); font-weight: 700;
+    flex: 1; min-width: 140px;
+  }
+
+  .feedback-content h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem; color: var(--navy);
+    margin: 18px 0 6px; padding-bottom: 4px;
+    border-bottom: 2px solid var(--gold);
+  }
+  .feedback-content p { line-height: 1.75; margin: 5px 0; font-size: 1.02rem; }
+  .feedback-content li { margin: 4px 0 4px 20px; line-height: 1.7; font-size: 1.02rem; }
+  .feedback-content hr { border: none; border-top: 1.5px dashed var(--gold); margin: 14px 0; }
+  .feedback-content strong { color: var(--navy); font-weight: 700; }
+  .feedback-content em { color: #555; }
+  .feedback-content .score-badge {
+    display: inline-block;
+    background: var(--navy); color: var(--gold);
+    padding: 3px 14px; border-radius: 20px;
+    font-weight: 700; font-size: 1rem; margin-left: 8px;
+  }
+
+  /* ── Follow-up ── */
+  .followup-area {
+    margin-top: 22px; padding-top: 18px;
+    border-top: 2px dashed rgba(1,0,102,0.15);
+  }
+  .followup-area label {
+    font-family: 'Playfair Display', serif;
+    font-size: 0.95rem; color: var(--navy);
+    display: block; margin-bottom: 8px; font-weight: 600;
+  }
+  .followup-row { display: flex; gap: 10px; }
+  .followup-input {
+    flex: 1; padding: 10px 14px; border-radius: 10px;
+    border: 1.5px solid rgba(1,0,102,0.25);
+    font-family: 'Crimson Pro', serif; font-size: 1rem;
+    background: #fff; color: #111; outline: none;
+    transition: border-color 0.2s;
+  }
+  .followup-input:focus { border-color: var(--navy); }
+  .followup-btn {
+    padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer;
+    background: var(--navy); color: var(--gold);
+    font-family: 'Playfair Display', serif; font-size: 0.95rem; font-weight: 700;
+    transition: all 0.2s ease;
+  }
+  .followup-btn:hover:not(:disabled) { background: var(--navy-mid); }
+  .followup-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Saved Chats ── */
+  .saved-empty {
+    text-align: center; padding: 50px 20px;
+    color: rgba(230,190,88,0.45); font-style: italic; font-size: 1.05rem;
+  }
+  .saved-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(230,190,88,0.2);
+    border-radius: var(--radius); padding: 16px 20px;
+    margin-bottom: 14px; cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .saved-card:hover { border-color: var(--gold); background: rgba(230,190,88,0.07); }
+  .saved-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .saved-card-icon { font-size: 1.4rem; }
+  .saved-card-type { font-family: 'Playfair Display', serif; color: var(--gold); font-size: 0.95rem; font-weight: 600; }
+  .saved-card-date { font-size: 0.78rem; color: rgba(230,190,88,0.5); margin-left: auto; }
+  .saved-card-snippet { font-size: 0.9rem; color: rgba(253,250,242,0.65); font-style: italic; }
+
+  /* ── Expanded saved chat ── */
+  .overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(1,0,50,0.88); backdrop-filter: blur(4px);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 30px 16px; overflow-y: auto;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  .overlay-inner {
+    background: var(--off-white); color: var(--text-dark);
+    border-radius: var(--radius); padding: 28px 26px;
+    max-width: 760px; width: 100%;
+    border: 2px solid var(--gold);
+    position: relative;
+  }
+  .overlay-close {
+    position: absolute; top: 14px; right: 18px;
+    background: transparent; border: none; cursor: pointer;
+    font-size: 1.5rem; color: var(--navy); line-height: 1;
+  }
+  .overlay-close:hover { color: var(--gold-dark); }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+    background: var(--gold); color: var(--navy);
+    padding: 12px 28px; border-radius: 30px;
+    font-family: 'Playfair Display', serif; font-weight: 700; font-size: 0.95rem;
+    box-shadow: 0 4px 20px rgba(230,190,88,0.5);
+    z-index: 200; animation: toastIn 0.3s ease;
+    white-space: nowrap;
+  }
+  @keyframes toastIn { from { opacity:0; transform: translateX(-50%) translateY(12px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+
+  /* ── Tips ticker ── */
+  .tips-bar {
+    background: rgba(230,190,88,0.1); border: 1px solid rgba(230,190,88,0.2);
+    border-radius: 30px; padding: 8px 20px; margin-bottom: 24px;
+    overflow: hidden; position: relative;
+  }
+  .tips-bar p {
+    font-size: 0.85rem; color: rgba(230,190,88,0.75);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-style: italic;
+  }
+  .tips-bar span { color: var(--gold); font-weight: 600; }
+
+  /* ── Word count bar ── */
+  .wc-bar { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 8px; }
+  .wc-stat { font-size: 0.8rem; color: rgba(230,190,88,0.55); }
+  .wc-stat strong { color: rgba(230,190,88,0.85); }
+
+  /* ── Responsive ── */
+  @media (max-width: 540px) {
+    .type-grid { grid-template-columns: repeat(2, 1fr); }
+    .feedback-toolbar { flex-direction: column; align-items: flex-start; }
+    .followup-row { flex-direction: column; }
+    h1 { font-size: 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Background particles -->
+<div class="bg-canvas" id="bgCanvas"></div>
+
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <div class="logo-ring">✍️</div>
+    <h1>Scribacious</h1>
+    <p class="tagline">An AI Composition Coach specifically designed for ENG 102 students</p>
+    <span class="oau-badge">🎓 Obafemi Awolowo University · Ile-Ife</span>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('coach')" id="tab-coach">✍️ Composition Coach</button>
+    <button class="tab-btn" onclick="switchTab('saved')" id="tab-saved">💾 Saved Chats (<span id="saved-count">0</span>)</button>
+  </div>
+
+  <!-- Daily Tip -->
+  <div class="tips-bar">
+    <p id="tips-text">💡 <span>Pro Tip:</span> Loading a composition tip...</p>
+  </div>
+
+  <!-- ═══════════ COACH PANEL ═══════════ -->
+  <div id="panel-coach">
+
+    <!-- Type Selector -->
+    <div class="card">
+      <p class="card-title">📌 Select Composition Type</p>
+      <div class="type-grid" id="typeGrid"></div>
+    </div>
+
+    <!-- Text Input -->
+    <div class="card">
+      <p class="card-title">📝 Your Composition</p>
+      <textarea
+        id="compositionInput"
+        class="compose-area"
+        placeholder="Enter or paste your composition here…"
+        oninput="onInput()"
+        onkeydown="handleKey(event)"
+      ></textarea>
+      <div class="char-counter" id="charCounter">0 characters</div>
+      <div class="wc-bar">
+        <span class="wc-stat">Words: <strong id="wordCount">0</strong></span>
+        <span class="wc-stat">Sentences: <strong id="sentCount">0</strong></span>
+        <span class="wc-stat">Paragraphs: <strong id="paraCount">0</strong></span>
+      </div>
+    </div>
+
+    <!-- Analyse Button -->
+    <button class="btn-primary" id="analyzeBtn" onclick="analyzeComposition()">
+      <span>🔍</span> <span>Analyse My Composition</span>
+    </button>
+
+    <!-- Spinner -->
+    <div id="spinnerBox" style="display:none;" class="card">
+      <div class="spinner-wrap">
+        <div class="spinner"></div>
+        <p class="spinner-text" id="spinnerText">Scribacious is reading your work…</p>
+      </div>
+    </div>
+
+    <!-- Feedback -->
+    <div id="feedbackSection" style="display:none; margin-top:22px;">
+      <div id="feedback-box">
+        <div class="feedback-toolbar">
+          <span>📋 Scribacious Feedback</span>
+          <button class="btn-secondary" id="speakBtn" onclick="toggleSpeak()">🔊 Listen to Feedback</button>
+          <button class="btn-secondary" onclick="saveChat()">💾 Save Chat</button>
+          <button class="btn-secondary" onclick="copyFeedback()">📋 Copy</button>
+        </div>
+        <div class="feedback-content" id="feedbackContent"></div>
+
+        <!-- Follow-up -->
+        <div class="followup-area">
+          <label>💬 Ask a follow-up question or request a rewrite:</label>
+          <div class="followup-row">
+            <input
+              type="text"
+              id="followUpInput"
+              class="followup-input"
+              placeholder="e.g. Can you explain the punctuation errors? / Rewrite for me…"
+              onkeydown="if(event.key==='Enter') sendFollowUp()"
+            />
+            <button class="followup-btn" id="followUpBtn" onclick="sendFollowUp()">Send ➤</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- New Composition Button -->
+      <button class="btn-new" onclick="newComposition()">
+        ✚ Enter or paste another composition
+      </button>
+    </div>
+
+  </div><!-- /panel-coach -->
+
+  <!-- ═══════════ SAVED PANEL ═══════════ -->
+  <div id="panel-saved" style="display:none;">
+    <div class="card">
+      <p class="card-title">💾 Your Saved Feedback Sessions</p>
+      <div id="savedList">
+        <p class="saved-empty">No saved chats yet. Analyse a composition and hit "Save Chat"!</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<!-- Toast -->
+<div id="toast" class="toast" style="display:none;"></div>
+
+<!-- Overlay for saved chat -->
+<div id="overlay" class="overlay" style="display:none;" onclick="closeOverlay(event)">
+  <div class="overlay-inner" id="overlayInner">
+    <button class="overlay-close" onclick="closeOverlay(null, true)">✕</button>
+    <div id="overlayContent"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════
+const NAMES = ["Tutor Bolu","Prof. Akande","Mr Olorode","Dr Oyebode","Mr Okhogbe","Mrs Odubela","Sade","Ibukun","Tosin","God's Favour","Segun","Rokeeb","Felicia","Ewamide","Ifeoluwa","Oluchi","Bisola","Daniel","Precious","Oyinkansola","Kaosarat","Nweze","Peace","Senator Isaac","Akolade","Rosemary","Blessing","Alucard","Peleola"];
+const PLACES = ["Faj","Awo","Mozambique","Moremi","Mainbowl","Amphitheatre","SUB","ODLT","Religion Ground","Admin Basement","EDB 317","Anglomoz","Alumni","Central Market","Main Gate","Mayfair","Asherifa","Ede Road","Campus Gate","Quarters","Road 7"];
+const OTHERS = ["CNG buses","CGPA","Sapa","German test (cloze test)","Adroit Tutors","Smart Tutors","ENG 102","course rep","departmental exam","hall week","matriculation","hostel prefect","porter's lodge","student union","second semester"];
+
+const COMP_TYPES = [
+  { id:"general",        label:"General Composition",          icon:"✍️" },
+  { id:"formal_letter",  label:"Formal Letter",                icon:"📄" },
+  { id:"semi_formal",    label:"Semi-Formal Letter",           icon:"📝" },
+  { id:"informal",       label:"Informal Letter",              icon:"💌" },
+  { id:"email",          label:"Email / Internet Corres.",     icon:"📧" },
+  { id:"speech",         label:"Speech Writing",               icon:"🎤" },
+  { id:"report",         label:"Report Writing",               icon:"📊" },
+  { id:"summary",        label:"Summary Writing",              icon:"📋" },
+  { id:"register",       label:"Register & Literacy",          icon:"📚" },
+  { id:"mechanics",      label:"Mechanics of Written English", icon:"🔧" },
+];
+
+const TIPS = [
+  "Every formal letter must have a date, inside address, salutation, subject line, body, complimentary close, and signature.",
+  "Use 'Yours faithfully' when you don't know the recipient's name; use 'Yours sincerely' when you do.",
+  "A paragraph should have a topic sentence, supporting sentences, and a concluding sentence.",
+  "Avoid contractions (don't, can't, it's) in formal writing — always use full forms.",
+  "Speech writing begins with an address to the audience: 'Mr Chairman, distinguished guests, ladies and gentlemen…'",
+  "A summary should be ¼ to ⅓ of the original length and written entirely in your own words.",
+  "Report writing follows: Title → Terms of Reference → Procedure → Findings → Conclusion → Recommendations.",
+  "Register refers to the variety of language used in a particular context — formal for official, informal for friendly.",
+  "Subject-verb agreement: 'The committee is meeting' not 'The committee are meeting' (British formal).",
+  "In email writing, always include a clear subject line and sign off professionally.",
+  "Sentences must have a subject and a verb — check every sentence for completeness.",
+  "Avoid ambiguity: 'Visiting lecturers can be boring' — who is boring, exactly?",
+  "Use active voice where possible: 'The Dean approved the letter' not 'The letter was approved by the Dean'.",
+  "A précis preserves the original author's viewpoint; do not add your own opinions.",
+  "Mechanics of writing covers: spelling, punctuation, capitalisation, sentence structure, and paragraphing.",
+];
+
+const SYSTEM_PROMPT = `You are Scribacious, an expert AI Composition Coach specifically designed for ENG 102 students at Obafemi Awolowo University (OAU), Ile-Ife, Nigeria. You are warm, encouraging, academically rigorous, and deeply familiar with OAU campus life.
+
+Your expertise covers: Mechanics of Written English, Formal/Semi-Formal/Informal Letter Writing, Internet Correspondences (emails), Speech Writing, Report Writing, Summary Writing, Register as a tool for literacy.
+
+Use these OAU-specific elements NATURALLY in your examples and feedback to make it relatable:
+- Names: Tutor Bolu, Prof. Akande, Mr Olorode, Dr Oyebode, Mr Okhogbe, Mrs Odubela, Sade, Ibukun, Tosin, God's Favour, Segun, Rokeeb, Felicia, Ewamide, Ifeoluwa, Oluchi, Bisola, Daniel, Precious, Oyinkansola, Kaosarat, Nweze, Peace, Senator Isaac, Akolade, Rosemary, Blessing, Alucard, Peleola
+- Places: Faj, Awo, Mozambique, Moremi, Mainbowl, Amphitheatre, SUB, ODLT, Religion Ground, Admin Basement, EDB 317, Anglomoz, Alumni, Central Market, Main Gate, Mayfair, Asherifa, Ede Road, Campus Gate, Quarters, Road 7
+- Concepts: CNG buses, CGPA, Sapa (poverty/broke), German test (cloze test), Adroit Tutors, Smart Tutors, hall week, matriculation, hostel prefect, course rep, departmental exam, porter's lodge, student union
+
+STRICT FEEDBACK FORMAT — always use these exact section headers:
+
+## 🎯 Overall Assessment
+Start with an encouraging comment. Give a score like [Score: 74/100].
+
+## ✅ Strengths
+2–4 specific things the student did well.
+
+## 🔧 Areas for Improvement
+Identify specific errors with line-by-line examples. Show WRONG version then CORRECT version. Use OAU names/places in your examples.
+
+## 📝 Improved Version
+Provide a corrected or improved full/partial rewrite demonstrating best practices.
+
+## 💡 Key Rules to Remember
+2–3 concise, memorable rules drawn from this piece.
+
+## ❓ Follow-up Questions
+Ask exactly 3 engaging questions to deepen the student's understanding or prompt a rewrite. Make at least one OAU-specific.
+
+End every response with: "🏆 Keep writing, keep improving! Scribacious believes in you."
+
+TONE: Be like a brilliant, caring senior student — firm, funny sometimes, always encouraging. Never harsh or condescending.
+
+Composition type being analysed: TYPE_PLACEHOLDER`;
+
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let selectedType = "general";
+let feedbackText  = "";
+let isSpeaking    = false;
+let savedChats    = [];
+let convHistory   = [];
+let currentTip    = 0;
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", () => {
+  buildParticles();
+  buildTypeGrid();
+  rotateTip();
+  setInterval(rotateTip, 8000);
+});
+
+function buildParticles() {
+  const canvas = document.getElementById("bgCanvas");
+  for (let i = 0; i < 22; i++) {
+    const s = document.createElement("span");
+    const size = Math.random() * 12 + 4;
+    s.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${Math.random()*100}%; top:${Math.random()*100}%;
+      animation-duration:${Math.random()*10+7}s;
+      animation-delay:${Math.random()*6}s;
+    `;
+    canvas.appendChild(s);
+  }
+}
+
+function buildTypeGrid() {
+  const grid = document.getElementById("typeGrid");
+  COMP_TYPES.forEach(t => {
+    const btn = document.createElement("button");
+    btn.className = "type-chip" + (t.id === selectedType ? " selected" : "");
+    btn.id = "chip-" + t.id;
+    btn.innerHTML = `<span class="chip-icon">${t.icon}</span><span>${t.label}</span>`;
+    btn.onclick = () => selectType(t.id);
+    grid.appendChild(btn);
+  });
+}
+
+function rotateTip() {
+  document.getElementById("tips-text").innerHTML =
+    `💡 <span>Writing Tip:</span> ${TIPS[currentTip % TIPS.length]}`;
+  currentTip++;
+}
+
+// ═══════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════
+function switchTab(tab) {
+  document.getElementById("panel-coach").style.display = tab === "coach" ? "block" : "none";
+  document.getElementById("panel-saved").style.display = tab === "saved"  ? "block" : "none";
+  document.getElementById("tab-coach").classList.toggle("active", tab === "coach");
+  document.getElementById("tab-saved").classList.toggle("active", tab === "saved");
+  if (tab === "saved") renderSavedList();
+}
+
+function selectType(id) {
+  selectedType = id;
+  document.querySelectorAll(".type-chip").forEach(c => c.classList.remove("selected"));
+  document.getElementById("chip-" + id)?.classList.add("selected");
+}
+
+function onInput() {
+  const val = document.getElementById("compositionInput").value;
+  document.getElementById("charCounter").textContent = val.length + " characters";
+  document.getElementById("wordCount").textContent  = val.trim() ? val.trim().split(/\s+/).length : 0;
+  document.getElementById("sentCount").textContent  = (val.match(/[.!?]+/g)||[]).length;
+  document.getElementById("paraCount").textContent  = val.split(/\n\s*\n/).filter(p=>p.trim()).length || (val.trim() ? 1 : 0);
+}
+
+function handleKey(e) {
+  if (e.ctrlKey && e.key === "Enter") analyzeComposition();
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.style.display = "block";
+  setTimeout(() => t.style.display = "none", 2600);
+}
+
+function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// ═══════════════════════════════════════════════
+//  MARKDOWN → HTML  (lightweight renderer)
+// ═══════════════════════════════════════════════
+function mdToHtml(text) {
+  let html = "";
+  const lines = text.split("\n");
+  let inList = false;
+
+  lines.forEach(line => {
+    // h2
+    if (/^## /.test(line)) {
+      if (inList) { html += "</ul>"; inList = false; }
+      html += `<h3>${esc(line.replace(/^## /, ""))}</h3>`;
+    }
+    // h1
+    else if (/^# /.test(line)) {
+      if (inList) { html += "</ul>"; inList = false; }
+      html += `<h2>${esc(line.replace(/^# /, ""))}</h2>`;
+    }
+    // hr
+    else if (/^---/.test(line.trim())) {
+      if (inList) { html += "</ul>"; inList = false; }
+      html += `<hr/>`;
+    }
+    // list
+    else if (/^[-•*] /.test(line)) {
+      if (!inList) { html += "<ul>"; inList = true; }
+      html += `<li>${inline(line.replace(/^[-•*] /, ""))}</li>`;
+    }
+    // numbered list
+    else if (/^\d+\. /.test(line)) {
+      if (!inList) { html += "<ul>"; inList = true; }
+      html += `<li>${inline(line.replace(/^\d+\. /, ""))}</li>`;
+    }
+    // blank
+    else if (!line.trim()) {
+      if (inList) { html += "</ul>"; inList = false; }
+      html += "<br/>";
+    }
+    // paragraph
+    else {
+      if (inList) { html += "</ul>"; inList = false; }
+      html += `<p>${inline(line)}</p>`;
+    }
+  });
+
+  if (inList) html += "</ul>";
+  return html;
+}
+
+function inline(s) {
+  s = esc(s);
+  s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/\*(.+?)\*/g,     "<em>$1</em>");
+  s = s.replace(/`(.+?)`/g,       "<code style='background:#eee;padding:1px 5px;border-radius:4px;font-size:0.88em'>$1</code>");
+  // highlight score badge
+  s = s.replace(/\[Score:\s*(\d+\/\d+)\]/gi, "<span class='score-badge'>$1</span>");
+  return s;
+}
+
+function esc(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ═══════════════════════════════════════════════
+//  ANALYSE
+// ═══════════════════════════════════════════════
+async function analyzeComposition() {
+  const text = document.getElementById("compositionInput").value.trim();
+  if (!text) { showToast("⚠️ Please enter your composition first!"); return; }
+
+  const typeObj  = COMP_TYPES.find(t => t.id === selectedType);
+  const typeName = typeObj ? typeObj.label : "General Composition";
+
+  document.getElementById("analyzeBtn").disabled    = true;
+  document.getElementById("spinnerBox").style.display = "block";
+  document.getElementById("feedbackSection").style.display = "none";
+
+  const spinnerMsgs = [
+    "Scribacious is reading your work…",
+    "Checking your grammar and style…",
+    "Consulting the ENG 102 rulebook…",
+    `Imagining ${rand(NAMES)} reading this at ${rand(PLACES)}…`,
+    "Almost done — polishing the feedback…"
+  ];
+  let si = 0;
+  const spinTimer = setInterval(() => {
+    document.getElementById("spinnerText").textContent = spinnerMsgs[si++ % spinnerMsgs.length];
+  }, 1800);
+
+  const sysPrompt = SYSTEM_PROMPT.replace("TYPE_PLACEHOLDER", typeName);
+  convHistory = [{ role:"user", content:`Please analyse and give detailed feedback on this ${typeName}:\n\n${text}` }];
+
+  try {
+    const res  = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: sysPrompt,
+        messages: convHistory,
+      })
+    });
+
+    if (!res.ok) throw new Error("API error " + res.status);
+    const data = await res.json();
+    const reply = (data.content || []).map(b => b.text || "").join("\n");
+
+    convHistory.push({ role:"assistant", content: reply });
+    feedbackText = reply;
+
+    clearInterval(spinTimer);
+    document.getElementById("spinnerBox").style.display = "none";
+    document.getElementById("feedbackContent").innerHTML = mdToHtml(reply);
+    document.getElementById("feedbackSection").style.display = "block";
+    document.getElementById("analyzeBtn").disabled = false;
+
+    setTimeout(() => document.getElementById("feedbackSection").scrollIntoView({ behavior:"smooth" }), 80);
+
+  } catch (err) {
+    clearInterval(spinTimer);
+    document.getElementById("spinnerBox").style.display = "none";
+    document.getElementById("analyzeBtn").disabled = false;
+    const errMsg = "⚠️ **Connection error.** Please check your internet and try again.\n\nError: " + err.message;
+    feedbackText = errMsg;
+    document.getElementById("feedbackContent").innerHTML = mdToHtml(errMsg);
+    document.getElementById("feedbackSection").style.display = "block";
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  FOLLOW-UP
+// ═══════════════════════════════════════════════
+async function sendFollowUp() {
+  const q = document.getElementById("followUpInput").value.trim();
+  if (!q || !convHistory.length) return;
+
+  document.getElementById("followUpBtn").disabled  = true;
+  document.getElementById("followUpBtn").textContent = "…";
+
+  const typeObj  = COMP_TYPES.find(t => t.id === selectedType);
+  const sysPrompt = SYSTEM_PROMPT.replace("TYPE_PLACEHOLDER", typeObj ? typeObj.label : "General");
+
+  convHistory.push({ role:"user", content: q });
+
+  try {
+    const res  = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        system: sysPrompt,
+        messages: convHistory,
+      })
+    });
+    if (!res.ok) throw new Error("API error " + res.status);
+    const data  = await res.json();
+    const reply = (data.content || []).map(b => b.text || "").join("\n");
+    convHistory.push({ role:"assistant", content: reply });
+
+    feedbackText += "\n\n---\n\n**You asked:** " + q + "\n\n" + reply;
+    document.getElementById("feedbackContent").innerHTML = mdToHtml(feedbackText);
+    document.getElementById("followUpInput").value = "";
+
+  } catch(err) {
+    showToast("⚠️ Follow-up failed. Check your connection.");
+    convHistory.pop();
+  }
+
+  document.getElementById("followUpBtn").disabled  = false;
+  document.getElementById("followUpBtn").textContent = "Send ➤";
+}
+
+// ═══════════════════════════════════════════════
+//  SPEECH
+// ═══════════════════════════════════════════════
+function toggleSpeak() {
+  if (!feedbackText) return;
+
+  if (isSpeaking) {
+    window.speechSynthesis.cancel();
+    isSpeaking = false;
+    document.getElementById("speakBtn").innerHTML = "🔊 Listen to Feedback";
+    document.getElementById("speakBtn").classList.remove("speaking");
+    return;
+  }
+
+  const plain = feedbackText
+    .replace(/#{1,3} /g,"")
+    .replace(/\*\*/g,"")
+    .replace(/\*/g,"")
+    .replace(/`/g,"")
+    .replace(/\[Score: (.+?)\]/g, "Score: $1")
+    .replace(/\n+/g, ". ")
+    .replace(/\.{2,}/g,".");
+
+  const utt = new SpeechSynthesisUtterance(plain);
+  utt.rate  = 0.9;
+  utt.pitch = 1.05;
+  utt.lang  = "en-GB";
+
+  // try to pick a nice voice
+  const voices = window.speechSynthesis.getVoices();
+  const pref = voices.find(v => /samantha|daniel|karen|moira/i.test(v.name));
+  if (pref) utt.voice = pref;
+
+  utt.onend   = () => { isSpeaking = false; document.getElementById("speakBtn").innerHTML = "🔊 Listen to Feedback"; document.getElementById("speakBtn").classList.remove("speaking"); };
+  utt.onerror = () => { isSpeaking = false; };
+
+  isSpeaking = true;
+  document.getElementById("speakBtn").innerHTML = "⏹ Stop Audio";
+  document.getElementById("speakBtn").classList.add("speaking");
+  window.speechSynthesis.speak(utt);
+}
+
+// ═══════════════════════════════════════════════
+//  SAVE / COPY
+// ═══════════════════════════════════════════════
+function saveChat() {
+  if (!feedbackText) return;
+  const typeObj = COMP_TYPES.find(t => t.id === selectedType);
+  const comp    = document.getElementById("compositionInput").value;
+  savedChats.unshift({
+    id:        Date.now(),
+    date:      new Date().toLocaleString("en-GB"),
+    type:      typeObj ? typeObj.label : "General",
+    icon:      typeObj ? typeObj.icon  : "✍️",
+    snippet:   comp.slice(0,90) + (comp.length > 90 ? "…" : ""),
+    feedback:  feedbackText,
+    composition: comp,
+  });
+  document.getElementById("saved-count").textContent = savedChats.length;
+  showToast("✅ Chat saved successfully!");
+}
+
+function copyFeedback() {
+  if (!feedbackText) return;
+  navigator.clipboard.writeText(feedbackText)
+    .then(() => showToast("📋 Feedback copied to clipboard!"))
+    .catch(() => showToast("⚠️ Copy failed — please select and copy manually."));
+}
+
+// ═══════════════════════════════════════════════
+//  NEW COMPOSITION
+// ═══════════════════════════════════════════════
+function newComposition() {
+  window.speechSynthesis.cancel();
+  isSpeaking = false;
+  convHistory = [];
+  feedbackText = "";
+
+  document.getElementById("compositionInput").value = "";
+  document.getElementById("charCounter").textContent  = "0 characters";
+  document.getElementById("wordCount").textContent    = "0";
+  document.getElementById("sentCount").textContent    = "0";
+  document.getElementById("paraCount").textContent    = "0";
+  document.getElementById("feedbackSection").style.display = "none";
+  document.getElementById("speakBtn").innerHTML = "🔊 Listen to Feedback";
+  document.getElementById("speakBtn").classList.remove("speaking");
+
+  setTimeout(() => {
+    document.getElementById("compositionInput").focus();
+    document.querySelector(".card").scrollIntoView({ behavior:"smooth" });
+  }, 80);
+}
+
+// ═══════════════════════════════════════════════
+//  SAVED LIST
+// ═══════════════════════════════════════════════
+function renderSavedList() {
+  const list = document.getElementById("savedList");
+  if (!savedChats.length) {
+    list.innerHTML = `<p class="saved-empty">No saved chats yet. Analyse a composition and hit "Save Chat"!</p>`;
+    return;
+  }
+  list.innerHTML = savedChats.map((c, i) => `
+    <div class="saved-card" onclick="openSavedChat(${i})">
+      <div class="saved-card-header">
+        <span class="saved-card-icon">${c.icon}</span>
+        <span class="saved-card-type">${c.type}</span>
+        <span class="saved-card-date">${c.date}</span>
+      </div>
+      <p class="saved-card-snippet">"${c.snippet}"</p>
+    </div>
+  `).join("");
+}
+
+function openSavedChat(i) {
+  const c = savedChats[i];
+  if (!c) return;
+  document.getElementById("overlayContent").innerHTML = `
+    <h2 style="font-family:'Playfair Display',serif;color:var(--navy);margin-bottom:6px;">${c.icon} ${c.type}</h2>
+    <p style="font-size:0.8rem;color:#888;margin-bottom:18px;">${c.date}</p>
+    <div style="background:#f5f0e6;border-radius:10px;padding:14px 16px;margin-bottom:20px;border-left:4px solid var(--gold)">
+      <p style="font-size:0.88rem;font-style:italic;color:#333;">"${c.composition.slice(0,200)}${c.composition.length>200?'…':''}"</p>
+    </div>
+    <div class="feedback-content">${mdToHtml(c.feedback)}</div>
+  `;
+  document.getElementById("overlay").style.display = "flex";
+}
+
+function closeOverlay(e, force) {
+  if (force || (e && e.target === document.getElementById("overlay"))) {
+    document.getElementById("overlay").style.display = "none";
+  }
+}
+</script>
+</body>
+</html>
